@@ -41,19 +41,16 @@ u8 atk_8266_consta_check(void);
 void atk_8266_load_keyboard(u16 x,u16 y);
 void atk_8266_key_staset(u16 x,u16 y,u8 keyx,u8 sta);
 u8 atk_8266_get_keynum(u16 x,u16 y);
-void atk_8266_get_wanip(u8* ipbuf);
-void atk_8266_get_ip(u8 x,u8 y);
-void atk_8266_msg_show(u16 x,u16 y,u8 wanip);
+void atk_8266_get_ip(u8* ipbuf);
+void atk_8266_msg_show(u8 wanip);
 void atk_8266_wificonf_show(u16 x,u16 y,u8* rmd,u8* ssid,u8* encryption,u8* password);
-u8 atk_8266_netpro_sel(u16 x,u16 y,u8* name);
-void atk_8266_mtest_ui(u16 x,u16 y);
+
+void atk_8266_mtest_ui(void);
 
 u8 atk_8266_ip_set(u8* title,u8* mode,u8* port,u8* ip);
 void atk_8266_test(void);
 
 
-
-u8 atk_8266_apsta_test(void);	//WIFI AP+STAƒ£ Ω≤‚ ‘
 u8 atk_8266_wifista_test(void);	//WIFI STA≤‚ ‘
 u8 atk_8266_wifiap_test(void);	//WIFI AP≤‚ ‘
 
