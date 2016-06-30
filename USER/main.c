@@ -51,15 +51,13 @@ int main(void){
 	//printf("\r\n===read file test===");
 	DB_TEST();
 	//printf("\r\n===read done===");
-//		
-//	while(1){
-//		if(EnableCheckCAN)  checkCAN();
-//		checkUsart();
-//		checkKey();
-//	}
-  
-    atk_8266_test();		//进入ATK_ESP8266测试
-
+    
+	while(1){
+		//if(EnableCheckCAN)  checkCAN();
+		//checkUsart();
+		//checkKey();
+        atk_8266_wifista_test();		//进入ATK_ESP8266测试
+	}
 }
 
 

@@ -36,22 +36,21 @@ void USART3_IRQHandler(void)
 	u8 res;	    
 	if(USART_GetITStatus(USART3, USART_IT_RXNE) != RESET)//接收到数据
 	{	 
- 
-	res =USART_ReceiveData(USART3);		
-	if((USART3_RX_STA&(1<<15))==0)//接收完的一批数据,还没有被处理,则不再接收其他数据
-	{ 
-		if(USART3_RX_STA<USART3_MAX_RECV_LEN)		//还可以接收数据
-		{
-			TIM_SetCounter(TIM7,0);//计数器清空        				 
-			if(USART3_RX_STA==0)		
-				TIM_Cmd(TIM7, ENABLE);  //使能定时器7 
-			USART3_RX_BUF[USART3_RX_STA++]=res;		//记录接收到的值	 
-		}else 
-		{
-			USART3_RX_STA|=1<<15;					//强制标记接收完成
-		} 
-	}  	
- }										 
+        res =USART_ReceiveData(USART3);		
+        if((USART3_RX_STA&(1<<15))==0)//接收完的一批数据,还没有被处理,则不再接收其他数据
+        { 
+            if(USART3_RX_STA<USART3_MAX_RECV_LEN)		//还可以接收数据
+            {
+                TIM_SetCounter(TIM7,0);//计数器清空        				 
+                if(USART3_RX_STA==0)		
+                    TIM_Cmd(TIM7, ENABLE);  //使能定时器7 
+                USART3_RX_BUF[USART3_RX_STA++]=res;		//记录接收到的值	 
+            }else 
+            {
+                USART3_RX_STA|=1<<15;					//强制标记接收完成
+            } 
+        }  	
+    }										 
 }  
 #endif	
 //初始化IO 串口3
