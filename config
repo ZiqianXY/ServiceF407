@@ -1,0 +1,14 @@
+0x0104,    0.0	,    100,    1.0,    N.m,  	CMD_EngineLoad_0104
+0x010C,    0.0	,    100,    1.0,    Rpm,  	CMD_EngineRPM_010C
+0x011F,    0.0	 ,    100,    1.0,    min,  	CMD_EngineRuntime_011F
+0x0110,    0.0	,    100,    1.0,    L,    	CMD_MassAirFlow_0110
+0x0111,    0.0	,    100,    1.0,    mm,   	CMD_ThrottlePosition_0111
+0x1051,    0.0	,    100,    1.0	,    Type,  	CMD_FindFuelType_1051
+0x015E,    0.0	,    100,    1.0,    Cons,  	CMD_FuelConsumption_015E
+0x012F,    0.0,    100,    1.0,    Level,  	CMD_FuelLevel_012F
+0x0133,    0.0,    100,    1.0,    Mpa,  	CMD_BarometricPressure_0x33
+0x010A,    0.0,    100,    1.0,    Mpa,  	CMD_FuelPressure_010A
+0x010B,    0.0,    100,    1.0,    Mpa,  	CMD_IntakeManifoldPressure_010B
+0x010F,    0.0,    100,    1.0,    C.,  		CMD_AirIntakeTemperature_010F
+0x0146,    0.0,    100,    1.0,    C.,  		CMD_AmbientAirTemperature_0146
+0x0105,    0.0,    100,    1.0,    C.,  		CMD_EngineCoolantTemperature_0105

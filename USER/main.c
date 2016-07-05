@@ -10,8 +10,7 @@
 #include "timer.h"
 #include "database.h"
 
-#include "usart3.h"
-#include "common.h" 
+#include "wifista.h" 
 
 // constant define here
 #define SYS_CLK         168
@@ -47,16 +46,13 @@ u16 time_can_transmit=0;
 
 
 int main(void){ 
-	sytemInit();
-	//printf("\r\n===read file test===");
-	DB_TEST();
-	//printf("\r\n===read done===");
     
+	sytemInit();
 	while(1){
 		//if(EnableCheckCAN)  checkCAN();
 		//checkUsart();
-		//checkKey();
-        atk_8266_wifista_test();		//进入ATK_ESP8266测试
+		checkKey();
+        //wifi_test();		//进入ATK_ESP8266测试
 	}
 }
 
@@ -65,21 +61,20 @@ void sytemInit(void){
 	
 	// 【特别说明】要先初始化串口，再去用printf;
 	usart_init(USART_BPS);	printf("...串口初始化:%dbps\r\n",USART_BPS); 
-  usart3_init(115200);  //初始化串口3波特率为115200
 	delay_init(SYS_CLK);    printf("...延时函数初始化\r\n"); 
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2); 
-                            printf("...中断优先级设置，优先级为2\r\n");//设置中断优先级分组为组2：2位抢占优先级，2位响应优先级
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2); printf("...中断优先级设置，优先级为2\r\n");//设置中断优先级分组为组2：2位抢占优先级，2位响应优先级
 	LED_Init();	            printf("...LED初始化\r\n"); 
 	KEY_Init();	            printf("...KEY初始化\r\n"); 
 	TIMER3_Init();          printf("...TIM3初始化\r\n"); 
-	CAN_ModeInit(bandrate, mode);
-	DB_Init();              printf("...文件系统初始化\r\n"); 
-	My_RTC_Init();		 			printf("...时钟初始化RTC\r\n"); 
+	CAN_ModeInit(bandrate, mode); 
+	My_RTC_Init();		 	printf("...时钟初始化RTC\r\n"); 
 	RTC_Set_WakeUp(RTC_WakeUpClock_CK_SPRE_16bits,0);		//配置WAKE UP中断,1秒钟中断一次
-	
+	DB_Init();              printf("...文件系统初始化\r\n");
+    OBD_print_CmdList();
+    WIFI_Init();
 	printf("\r\n---help------------------\
-					\r\n左键：循环发送OBD查询指令\
-          \r\n右键：单次发送OBD查询指令\
+          \r\n左键：查询数据\
+          \r\n右键：上传数据\
           \r\n上键：切换CAN工作模式\
           \r\n下键：切换CAN波特率\
           \r\n-------------------------\r\n");   
@@ -140,7 +135,8 @@ void CAN_KEY_D(void){   printf("\r\n\r\n####[IN]KEY_D...change CAN_Band:");
 }
 
 void CAN_KEY_R(void){
-    OBD_TEST();
+    
+    DB_WIFI_UPLOAD();
 }
 
 void CAN_KEY_L(void){

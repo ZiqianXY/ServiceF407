@@ -126,7 +126,7 @@ u8 atk_8266_send_data(u8 *data,u8 *ack,u16 waittime)
 
 u8 atk_8266_start_trans(){
     atk_8266_quit_trans();
-    printf("\r\n===进入为透传模式\r\n");
+    printf("===进入透传模式\r\n");
 	atk_8266_send_cmd("AT+CIPMODE=1","OK",200);      //传输模式为：透传			
     return (0==atk_8266_send_cmd("AT+CIPSEND","OK",200));         //开始透传 
 }
@@ -135,7 +135,7 @@ u8 atk_8266_start_trans(){
 //返回值:0,退出成功;
 //       1,退出失败
 u8 atk_8266_quit_trans(void){
-    printf("===退出透传模式\r\n");
+    //printf("\r\n===退出透传模式\r\n");
 	while((USART3->SR&0X40)==0);	//等待发送空
 	USART3->DR='+';    
     delay_ms(15);					//大于串口组帧时间(10ms)
@@ -154,16 +154,15 @@ u8 atk_8266_quit_trans(void){
 u8 atk_8266_connect_to_wifi(void){
     u8 *p;
     u8 retry = 3;
+    
+    if(atk_8266_connect_wifi_check()) {
+        printf("[Wifi已连接]");
+        return 1;
+    }
     p=mymalloc(SRAMIN,32);	
     printf("===connect to wifi\r\n");
     printf("无线参数:%s,%s,%s\r\n",(u8*)wifista_ssid,(u8*)wifista_encryption,(u8*)wifista_password);    //申请32字节内存
-    if(atk_8266_connect_wifi_check()) {
-        printf("[已连接]");
-        myfree(SRAMIN,p);		//释放内存 
-        return 1;
-    }
     //设置连接到的WIFI网络名称/加密方式/密码,这几个参数需要根据您自己的路由器设置进行修改!! 
-	
     sprintf((char*)p,"AT+CWJAP=\"%s\",\"%s\"",wifista_ssid,wifista_password);//设置无线参数:ssid,密码
     while(retry && atk_8266_send_cmd(p,"WIFI GOT IP",5000)){
         retry--;
@@ -180,7 +179,7 @@ u8 atk_8266_connect_to_server(void){
     u8 retry = 3;
     p=mymalloc(SRAMIN,32);							//申请32字节内存
     if(atk_8266_connect_server_check()) {
-        printf("[已连接到服务器]");
+        printf("[server已连接]");
         myfree(SRAMIN,p);		//释放内存 
         return 1;
     }
@@ -191,12 +190,9 @@ u8 atk_8266_connect_to_server(void){
     sprintf((char*)p,"AT+CIPSTART=\"TCP\",\"%s\",%s",(u8*)ipnum,(u8*)portnum);    //配置目标TCP服务器
     printf(">访问服务器：%s\r\n",p+12);
     
-    //?????????????????????????????????????????????????????????//
-    while(retry && atk_8266_send_cmd(p,"ALREADY CONNECTED",2000) && atk_8266_send_cmd(p,"OK",2000)){ 
+    while(retry && atk_8266_send_cmd(p,"OK",2000) && atk_8266_send_cmd(p,"ALREADY CONNECTED",2000)){ 
         retry--;
         printf(">>>访问指定地址失败，重试(%d)...\r\n",3-retry);
-        //接收到ERROR CLOSED表示服务器端不在线，直接退出连接
-        if(atk_8266_send_cmd(p,"CLOSED",2000)==0) return 0; 
     }
     if(retry) printf(">>>访问指定地址成功\r\n");
     myfree(SRAMIN,p);		//释放内存 
@@ -300,7 +296,7 @@ void atk_8266_version_msg_show()
 
 void atk_8266_init(void){
     printf("\r\n\r\n=====ATK-ESP8266 WIFI模块初始化=====\r\n");
-
+    usart3_init(115200);  //初始化串口3波特率为115200
     printf("===检查ATK-ESP8266是否在线\r\n");
     while(atk_8266_send_cmd("AT","OK",200))//检查WIFI模块是否在线
     {
@@ -312,9 +308,7 @@ void atk_8266_init(void){
     } 
     printf("===关闭回显\r\n");
     while(atk_8266_send_cmd("ATE0","OK",200));//关闭回显
-    
     printf("===设置WIFI为STA模式,重启...\r\n");
-	
     atk_8266_send_cmd("AT+CWMODE=1","OK",500);		//设置WIFI STA模式
     atk_8266_send_cmd("AT+RST","OK",500);
     delay_ms(3000);         //延时3S等待重启成功

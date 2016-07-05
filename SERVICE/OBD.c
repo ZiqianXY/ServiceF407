@@ -3,7 +3,6 @@
 **  OBD协议相关的各项任务实现 ，by Ziqian      *
 **
 ***********************************************/
-
 #include "OBD.h"
 #include "usart.h"
 #include "delay.h"
@@ -11,32 +10,33 @@
 #include "can.h"
 #include "database.h"
 #include "rtc.h"
+
 // 服务数据项和标识量
-static OBD_CommandTypeDef OBD_CommandList[NUM_COMMAND]={{0,0}};    // 待读取数据指令列表
-static OBD_CommandTypeDef OBD_CommandStruct;   // 一条数据指令
-static OBD_USDataTypeDef OBD_DataStruct;       // 数据缓存结构体
-bool TimerOver_Rx;  // 发送超时标志
-bool TimerOver_Tx;  // 接收超时标志
+u8 num = 0;
+u8 TimerOver_Rx;  // 发送超时标志
+u8 TimerOver_Tx;  // 接收超时标志
 u8 ReSendTimes;     // 重新发送次数
 u8 tmpTimer=0;      // timer临时变量
 u32 OBD_CAN_ID;
 
+OBD_CmdTypeDef OBD_CmdList[NUM_COMMAND];    // 待读取数据指令列表
+OBD_DataTypeDef OBD_DATA_TMP;
+
+
+
 // 发送OBD数据请求服务，SID-PID
-bool OBD_SendCommand( OBD_CommandTypeDef obd_command){
+bool OBD_SendCommand( OBD_CmdTypeDef* obd_command){
     u8 command_data[Length_Default]={0};
     bool sendFlag=false;
     command_data[0]=0x02;
-    command_data[1]=obd_command.SID;
-    command_data[2]=obd_command.PID;
-    
+    command_data[1]=obd_command->PID_SID>>8; 
+    command_data[2]=obd_command->PID_SID & 0x00ff;
     sendFlag=CAN_SendMsg(OBD_CAN_ID,command_data);
-    
+    OBD_DATA_TMP.cmd = obd_command;
     if (sendFlag){
-			//printf("-请求置位-");
-			OBD_DataStruct.indication_Request=true;
-			OBD_DataStruct.command=obd_command;
-			OBD_DataStruct.id_CAN=OBD_CAN_ID;
-			OBD_StartTimerRx();
+        //printf("-请求置位-");
+        OBD_DATA_TMP.indication_Request=true;
+        OBD_StartTimerRx();
     }
     return sendFlag;
 }
@@ -53,7 +53,7 @@ bool OBD_SendCommand_CF(void){
     printf("-FC-");
     tmpTimer=0;
     TimerOver_Rx=false;
-    return CAN_SendMsg(OBD_DataStruct.id_CAN,command_data);
+    return CAN_SendMsg(OBD_DATA_TMP.id_CAN,command_data);
 }
 
 
@@ -62,15 +62,13 @@ void AppendData(u8* msg, u8 start){
     u8 i=0;
     u8 position=0;
     for(i=start;i<8;i++){
-        position=OBD_DataStruct.lengthCurrent;
-        OBD_DataStruct.Data[position]=msg[i];
-        //printf("[%d][%d]",i,msg[i]);
-        //printf("[%d][%d]",position,OBD_DataStruct.Data[position]);
+        position=OBD_DATA_TMP.lengthCurrent;
+        OBD_DATA_TMP.Data[position]=msg[i];
         // 数据接受完成
-        OBD_DataStruct.lengthCurrent++;
-        if(OBD_DataStruct.lengthCurrent==OBD_DataStruct.lengthToRec){
+        OBD_DATA_TMP.lengthCurrent++;
+        if(OBD_DATA_TMP.lengthCurrent==OBD_DATA_TMP.lengthToRec){
             //printf("-RxEnd-");
-            OBD_DataStruct.indication_RX=true;
+            OBD_DATA_TMP.indication_RX=true;
             break;
         }
     }
@@ -83,7 +81,7 @@ void OBD_CAN_RecHandler(CanRxMsg msgCanRx){
     u8 bytePCI=msgCanRx.Data[0]&0xF0;
     
     //  错误处理--尚未开启本次服务请求
-    if(!OBD_DataStruct.indication_Request){
+    if(!OBD_DATA_TMP.indication_Request){
         OBD_ErrorHandler(N_UNEXPECTED);
         return;
     }
@@ -99,28 +97,28 @@ void OBD_CAN_RecHandler(CanRxMsg msgCanRx){
         case PCItype_SF:
             
             printf("-SF-");
-            OBD_DataStruct.lengthToRec=msgCanRx.Data[0]&0x0F;   // 保存待接受数据长度
+            OBD_DATA_TMP.lengthToRec=msgCanRx.Data[0]&0x0F;   // 保存待接受数据长度
             AppendData(msgCanRx.Data,1);        //  缓存接收数据
-            OBD_DataStruct.indication_RX =true;
+            OBD_DATA_TMP.indication_RX =true;
             //OBD_DeInit();
             break;
         
         case PCItype_FF:
-            if(OBD_DataStruct.indication_FF){
+            if(OBD_DATA_TMP.indication_FF){
                 OBD_ErrorHandler(N_WRONG_FF);
                 return;
             }
-            OBD_DataStruct.lengthToRec=((msgCanRx.Data[0]&0x0F)<<8)+msgCanRx.Data[1];   // 保存待接受数据长度
+            OBD_DATA_TMP.lengthToRec=((msgCanRx.Data[0]&0x0F)<<8)+msgCanRx.Data[1];   // 保存待接受数据长度
             AppendData(msgCanRx.Data,2);        //  缓存接收数据
             
-            OBD_DataStruct.id_CAN=msgCanRx.StdId;
+            OBD_DATA_TMP.id_CAN=msgCanRx.StdId;
             printf("-FF-");
-            OBD_DataStruct.indication_FF=true;  //  首帧标志
+            OBD_DATA_TMP.indication_FF=true;  //  首帧标志
             OBD_SendCommand_CF();               //  发送流量控制帧
             break;
 
         case PCItype_CF:
-            if(!OBD_DataStruct.indication_FF){
+            if(!OBD_DATA_TMP.indication_FF){
                 OBD_ErrorHandler(N_WRONG_CF);
                 return;
             }
@@ -137,61 +135,55 @@ void OBD_CAN_RecHandler(CanRxMsg msgCanRx){
 
 // 重置OBD服务的数据项
 void OBD_DeInit(void){
-    
-    //OBD_DataStruct.command=OBD_CommandStruct;
-    OBD_DataStruct.id_CAN=Rsp_Fhy_Default;
-    OBD_DataStruct.indication_FF=false;
-    OBD_DataStruct.indication_Request=false;
-    OBD_DataStruct.indication_RX=false;
-    OBD_DataStruct.result=N_NA;
-    OBD_DataStruct.lengthCurrent=0;
-    OBD_DataStruct.lengthToRec=0;
-    
+    OBD_DATA_TMP.id_CAN = OBD_CAN_ID;
+    OBD_DATA_TMP.cmd = NULL;
+    OBD_DATA_TMP.indication_FF=false;
+    OBD_DATA_TMP.indication_Request=false;
+    OBD_DATA_TMP.indication_RX=false;
+    OBD_DATA_TMP.result=N_NA;
+    OBD_DATA_TMP.lengthCurrent=0;
+    OBD_DATA_TMP.lengthToRec=0;
     TimerOver_Rx=false;
     TimerOver_Tx=false;
 }
 
 // OBD正确接收到对应请求的后续处理
-void saveData(OBD_USDataTypeDef OBD_DataStruct){
+void obd_saveData(){
     u16 i=0;
-		char msg[100];
-	  u8 offset=0;
-		char time[17];
-		getTimeString((char*)time);
-//char dataBuffer[TEST_LEN] = "Time,SID-PID,Min,Max,Per,Unit,Description\r\n";
-		offset+= sprintf(msg+offset,"%s%08x,%d,",time,OBD_DataStruct.id_CAN,OBD_DataStruct.lengthToRec);
-		for(i=0;i<OBD_DataStruct.lengthToRec;i++){
-				offset+= sprintf(msg+offset,"%02x ",OBD_DataStruct.Data[i]);
-		}
-		offset+= sprintf(msg+offset,",#\r\n");	// 为数据添加结束换行标志
+	char msg[150];
+	u8 offset=0;
+    char time[17];
+    getTimeString((char*)time);
+    offset+= sprintf(msg+offset,"%s,0x%08x,0x%04x,%d,",time,OBD_DATA_TMP.id_CAN,OBD_DATA_TMP.cmd->PID_SID,OBD_DATA_TMP.lengthToRec);
+    for(i=0;i<OBD_DATA_TMP.lengthToRec;i++)
+        offset+= sprintf(msg+offset,"%02x ",OBD_DATA_TMP.Data[i]);
+    offset+= sprintf(msg+offset,",%s,%s,%s,%s,%s",OBD_DATA_TMP.cmd->Min,OBD_DATA_TMP.cmd->Max,OBD_DATA_TMP.cmd->Per,OBD_DATA_TMP.cmd->Unit,OBD_DATA_TMP.cmd->Desc);
+    offset+= sprintf(msg+offset,"\r\n");	// 为数据添加结束换行标志
     DB_SaveData(msg,offset);
-    printf("\r\n%s",msg);
+    printf("\r\n[obd_save]%s",msg);
 }
 
-void printCommandList(void){
-    int i=0;
-    printf("\r\n==OBD_CommandList==\r\n");
-    for(i=0;i<NUM_COMMAND;i++){
-        printf("[%02d][0x]%02x %02x\r\n",i,OBD_CommandList[i].SID,OBD_CommandList[i].PID);
+
+// 打印读取到的命令配置
+void OBD_print_CmdList(){
+    int num;
+    printf("\r\n===Print CMD List data...\r\n");
+    for(num=0;num<NUM_COMMAND;num++){
+        printf("[%02d]0x%04x,%4s,%4s,%4s,%5s,%s\r\n",num,OBD_CmdList[num].PID_SID,OBD_CmdList[num].Min,OBD_CmdList[num].Max,OBD_CmdList[num].Per,OBD_CmdList[num].Unit,OBD_CmdList[num].Desc);
     }
 }
 
+
 void OBD_CHECK(void){
     printf("[data resolve]:");
-    if(OBD_DataStruct.indication_RX){
+    if(OBD_DATA_TMP.indication_RX){
         printf("[got Data]");
-        
     }else{
         printf("[something wrong]");
     }
     printf("\r\n");
-
 }
 
-void OBD_WIFI(void){
-    printf("\r\n\
-	every cycle, check, if there are some trouble TMP_FILE, read and transmit through WIFI. \r\n");
-}
 
 void getCanId(void){
     // 根据CAN_ID类型发送不同的id
@@ -205,80 +197,40 @@ void getCanId(void){
  * 开始OBD数据请求服务，轮询OBD_CommandList中的各项数据请求
 */
 void OBD_StartService(void){
-    u16 i=0;
+    
     // 获取can命令行ID
     getCanId();
-    // 读取待获取数据
-    OBD_ReadCommandList();
     printf("\r\n\r\n==OBD_RequestCommandList==\r\n");
-    
-    for(i=0;i<NUM_COMMAND;i++){
-        printf("[%02d]",i);
+    for(num=0;num<NUM_COMMAND;num++){
+        printf("[%02d]",num);
         // 初始化公共缓存区
         OBD_DeInit(); 
-        // 获取一条数据指令
-        OBD_CommandStruct=OBD_CommandList[i];
         // blin the led to indicate the running
         LED_Blin_Syn();
-
         // 发送查询命令
-        OBD_SendCommand(OBD_CommandStruct);
+        OBD_SendCommand(&(OBD_CmdList[num]));
         // 等待接收完成
         OBD_ReceiveData();
         // 对结果进行处理
-        OBD_CHECK();
+        //OBD_CHECK();
         // 延时等待下一条数据查询
         delay_ms(TIME_NextRequest);
     }
-    
-    OBD_WIFI();
-    
 }
 
-/**
- * test
-*/
-void OBD_TEST(void){
-    static u8 i=0;
-    // 获取can命令行ID
-    getCanId();
-    // 读取待获取数据
-    OBD_ReadCommandList();
-    
-		printf("[%02d]",i);
-		// 初始化公共缓存区
-		OBD_DeInit(); 
-		// 获取一条数据指令
-		OBD_CommandStruct=OBD_CommandList[i];
-		// blin the led to indicate the running
-		LED_Blin_Syn();
-
-		// 发送查询命令
-		OBD_SendCommand(OBD_CommandStruct);
-		// 等待接收完成
-		OBD_ReceiveData();
-	
-		// 对结果进行处理
-		OBD_CHECK();   
-    OBD_WIFI();
-		
-    i++;
-    if(i==NUM_COMMAND)
-        i=0;
-}
-
+// 循环查询直到得到结果或者超时
 void OBD_ReceiveData(){
     tmpTimer=0;
     TimerOver_Rx=false;        
-    
+    //printf("[A1]");
     while(1){
+        //printf("[A2]");
         // 临时处理的方式
         if((TIME_InRequest*tmpTimer++)>TIME_Rx_OVER){
             TimerOver_Rx=true;
         }
-        
         if(TimerOver_Rx){
-            OBD_DataStruct.result=N_TIMEOUT_RX;
+            OBD_DATA_TMP.result=N_TIMEOUT_RX;
             OBD_ErrorHandler(N_TIMEOUT_RX);
             break;
         }
@@ -289,9 +241,10 @@ void OBD_ReceiveData(){
             //-------------------------------------------------------OBD_CAN_RecHandler---------------------/    
             OBD_CAN_RecHandler(CAN_RecMsg());       
             //-------------------------------------------------------OBD_CAN_RecHandler---------------------/  
-            if(OBD_DataStruct.indication_RX){
+            if(OBD_DATA_TMP.indication_RX){
                 printf("[%02d次]",tmpTimer);
-                saveData(OBD_DataStruct);
+                //printf("[A3]");
+                obd_saveData();
                 break;
             }
             tmpTimer=0;
@@ -303,28 +256,10 @@ void OBD_ReceiveData(){
 
 void OBD_ErrorHandler(u8 error){
     printf("-ObdErr:%d-\r\n",error);
-
 };
 
 
 void OBD_StartTimerRx(void){
-    //printf("==OBD_startTimer==\r\n");
+    printf("\r\n==OBD_startTimer==");
 }
 
-void OBD_ReadCommandList(void){
-    u8 i=0;
-    const OBD_CommandTypeDef TMP_CommandList[NUM_COMMAND]={
-        {0x01,0x00},{0x02,0x00},{0x03,0x00},{0x04,0x00},{0x05,0x00},
-        {0x06,0x00},{0x07,0x00},{0x08,0x00},{0x09,0x00},{0x10,0x00},
-    };
-    static bool isCommandListRead=false;   // 不重置此数据
-    if(isCommandListRead)   return;
-    isCommandListRead=true;
-    
-    printf("\r\n==OBD_ReadCommandList==\r\n");
-    for(i=0;i<NUM_COMMAND;i++){
-        OBD_CommandList[i]=TMP_CommandList[i];
-        printf("[%02d][0x]%02x %02x\r\n",i,OBD_CommandList[i].SID,OBD_CommandList[i].PID);
-    }
-		printf("==========\r\n");
-}

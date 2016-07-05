@@ -70,8 +70,7 @@ void usart3_init(u32 bound)
 	
 	GPIO_PinAFConfig(GPIOB,GPIO_PinSource11,GPIO_AF_USART3); //GPIOB11复用为USART3
 	GPIO_PinAFConfig(GPIOB,GPIO_PinSource10,GPIO_AF_USART3); //GPIOB10复用为USART3	
-	
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11 | GPIO_Pin_10; //GPIOB11和GPIOB10初始化
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11 | GPIO_Pin_10; //GPIOB11和GPIOB10初始化
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;//复用功能
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;	//速度50MHz
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP; //推挽复用输出
@@ -86,20 +85,19 @@ void usart3_init(u32 bound)
 	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;	//收发模式
   
 	USART_Init(USART3, &USART_InitStructure); //初始化串口3
- 
 	USART_Cmd(USART3, ENABLE);               //使能串口 
 	
-  USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);//开启中断   
-	
+    
+    USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);//开启中断   
 	NVIC_InitStructure.NVIC_IRQChannel = USART3_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority=2 ;//抢占优先级2
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;		//子优先级3
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;			//IRQ通道使能
 	NVIC_Init(&NVIC_InitStructure);	//根据指定的参数初始化VIC寄存器
+    
 	TIM7_Int_Init(1000-1,8400-1);		//100ms中断
 	USART3_RX_STA=0;		//清零
 	TIM_Cmd(TIM7, DISABLE); //关闭定时器7
-  	
 
 }
 

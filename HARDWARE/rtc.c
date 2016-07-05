@@ -227,7 +227,7 @@ void getTimeString(char* str){
 	sprintf((char*)str,"%02d-%02d%02d-%02d%02d%02d",\
 		RTC_DateStruct.RTC_Year+2000,RTC_DateStruct.RTC_Month,RTC_DateStruct.RTC_Date,\
 		RTC_TimeStruct.RTC_Hours,RTC_TimeStruct.RTC_Minutes,RTC_TimeStruct.RTC_Seconds); 
-	printf("[%s]",str);
+	//printf("[%s]",str);
 }
 
 

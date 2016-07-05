@@ -9,12 +9,12 @@
 
 void DB_Init(void);
 
-void DB_SaveData(char* data, int length);
+u8 DB_SaveData(char* data, int length);
 
 void DB_ReadData(void);
 
 bool DB_HasData(void);
 
-void DB_TEST(void);
+u8 DB_WIFI_UPLOAD(void);
 
 #endif
